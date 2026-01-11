@@ -197,7 +197,7 @@
     <script>
         // --- CONFIGURATION ---
         // REPLACE THIS WITH YOUR GOOGLE APPS SCRIPT URL
-        const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxtzCgd8Wxj1A6I34Hwhny2m6h4PPPHCZyOQqNPQ7_zaJTXZkYouI0LDpDKAMaPEGaWMw/exec";
+        const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycby-BpRHvueiC4Zw664au4SRHvy-hCpvswQynE5nZLhqrGtwo8vDpMyApdspXGH0zCZK_g/exec";
         
         // ZAGREB COORDINATES (Ban Jelacic Square)
         const MAP_CENTER = [45.8131, 15.9775];
@@ -326,6 +326,30 @@
         // SUBMISSION LOGIC
         // ============================================================
 
+        function sendPayload(payload) {
+            const body = JSON.stringify(payload);
+
+            if (navigator.sendBeacon) {
+                try {
+                    const blob = new Blob([body], { type: 'text/plain' });
+                    const queued = navigator.sendBeacon(GOOGLE_SCRIPT_URL, blob);
+                    if (queued) {
+                        return Promise.resolve({ queued: true });
+                    }
+                } catch (error) {
+                    // Fall through to fetch on any beacon errors.
+                }
+            }
+
+            // Apps Script web apps do not emit CORS headers, so use no-cors.
+            return fetch(GOOGLE_SCRIPT_URL, {
+                method: "POST",
+                body,
+                mode: "no-cors",
+                keepalive: true
+            });
+        }
+
         function submitDrawing() {
             if (submitted || submitting) return;
 
@@ -350,20 +374,21 @@
                 geometry: geojson
             };
 
-            fetch(GOOGLE_SCRIPT_URL, {
-                method: "POST",
-                body: JSON.stringify(payload)
-            })
-            .then((response) => {
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}`);
-                }
-                onSubmitSuccess();
-            })
-            .catch((error) => {
-                console.error('Submission error:', error);
-                onSubmitError();
-            });
+            sendPayload(payload)
+                .then((response) => {
+                    if (!response || response.type === 'opaque' || response.queued) {
+                        onSubmitSuccess();
+                        return;
+                    }
+                    if (!response.ok) {
+                        throw new Error('Non-OK response');
+                    }
+                    onSubmitSuccess();
+                })
+                .catch((error) => {
+                    console.error('Submission error:', error);
+                    onSubmitError();
+                });
         }
 
         function onSubmitSuccess() {
