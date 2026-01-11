@@ -26,6 +26,20 @@
             bottom: 80px;
             z-index: 1;
             cursor: crosshair;
+            background: #f5f5f5;
+        }
+
+        #map .map-error {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 16px;
+            color: #444;
+            font-size: 14px;
+            background: #f5f5f5;
         }
 
         #controls {
@@ -178,8 +192,7 @@
         <p>Your response has been recorded.</p>
     </div>
 
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-            integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
     <script>
         // --- CONFIGURATION ---
@@ -222,6 +235,11 @@
         // ============================================================
 
         function init() {
+            if (!window.L || !window.L.map) {
+                showMapError('Map failed to load. Check your network or allow access to unpkg.com.');
+                return;
+            }
+
             initMap();
             bindEvents();
             checkPreviousSubmission();
@@ -392,6 +410,13 @@
 
         function hideStatus() {
             elements.status.style.display = 'none';
+        }
+
+        function showMapError(message) {
+            elements.map.innerHTML = `<div class="map-error">${message}</div>`;
+            elements.map.style.cursor = 'default';
+            elements.btnSubmit.disabled = true;
+            elements.btnClear.disabled = true;
         }
 
         // ============================================================
