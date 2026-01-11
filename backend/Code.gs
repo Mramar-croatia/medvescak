@@ -115,6 +115,14 @@ function doPost(e) {
  * @returns {TextOutput} - JSON response
  */
 function doGet(e) {
+  const params = (e && e.parameter) ? e.parameter : {};
+  const action = params.action || '';
+
+  if (action === 'geojson') {
+    const featureCollection = buildFeatureCollection();
+    return createJsonpResponse(featureCollection, params.callback);
+  }
+
   return createResponse({
     success: true,
     message: 'Participatory Cartography Survey Backend',
@@ -183,27 +191,36 @@ function createResponse(data) {
     .setMimeType(ContentService.MimeType.JSON);
 }
 
-// ============================================================
-// DATA EXPORT UTILITIES
-// ============================================================
+/**
+ * Creates a JSONP response for cross-origin requests
+ * @param {Object} data - Response data
+ * @param {string} callback - JSONP callback name
+ * @returns {TextOutput} - JSONP response
+ */
+function createJsonpResponse(data, callback) {
+  if (callback) {
+    return ContentService
+      .createTextOutput(callback + '(' + JSON.stringify(data) + ');')
+      .setMimeType(ContentService.MimeType.JAVASCRIPT);
+  }
+
+  return createResponse(data);
+}
 
 /**
- * Exports all responses as GeoJSON FeatureCollection
- * Run this function manually to generate export
- * @returns {string} - GeoJSON string
+ * Builds a GeoJSON FeatureCollection from sheet data
+ * @returns {Object} - FeatureCollection
  */
-function exportAsGeoJSON() {
+function buildFeatureCollection() {
   const sheet = getOrCreateSheet();
   const data = sheet.getDataRange().getValues();
-
-  // Skip header row
   const features = [];
+
   for (let i = 1; i < data.length; i++) {
     const row = data[i];
     try {
       const geometry = JSON.parse(row[6]); // geometry_json column
 
-      // Add metadata as properties
       geometry.properties = {
         row_id: row[0],
         session_id: row[1],
@@ -218,15 +235,30 @@ function exportAsGeoJSON() {
     }
   }
 
-  const featureCollection = {
+  const spreadsheet = sheet.getParent();
+
+  return {
     type: 'FeatureCollection',
     features: features,
     metadata: {
       exported_at: new Date().toISOString(),
-      total_responses: features.length
+      total_responses: features.length,
+      sheet_url: spreadsheet ? spreadsheet.getUrl() : ''
     }
   };
+}
 
+// ============================================================
+// DATA EXPORT UTILITIES
+// ============================================================
+
+/**
+ * Exports all responses as GeoJSON FeatureCollection
+ * Run this function manually to generate export
+ * @returns {string} - GeoJSON string
+ */
+function exportAsGeoJSON() {
+  const featureCollection = buildFeatureCollection();
   const geojsonString = JSON.stringify(featureCollection, null, 2);
 
   // Log for copying

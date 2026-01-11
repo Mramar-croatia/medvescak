@@ -157,6 +157,41 @@
             to { transform: rotate(360deg); }
         }
 
+        #data-controls {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            display: flex;
+            gap: 8px;
+            z-index: 1000;
+        }
+
+        #data-controls button {
+            flex: 0;
+            width: 34px;
+            height: 34px;
+            padding: 0;
+            border-radius: 6px;
+            background: rgba(255,255,255,0.9);
+            border: 1px solid #ddd;
+            font-size: 0;
+            line-height: 0;
+        }
+
+        #data-controls button svg {
+            width: 18px;
+            height: 18px;
+            fill: #2c3e50;
+        }
+
+        #data-controls button.is-active {
+            background: #2c3e50;
+        }
+
+        #data-controls button.is-active svg {
+            fill: #fff;
+        }
+
         /* Point count indicator */
         #point-count {
             position: absolute;
@@ -174,6 +209,19 @@
 </head>
 <body>
     <div id="map"></div>
+
+    <div id="data-controls">
+        <button id="btn-open-sheet" type="button" title="Open response sheet" aria-label="Open response sheet">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M7 3h7l5 5v13a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1zm7 1.5V9h4.5L14 4.5zM8 12h8v2H8v-2zm0 4h8v2H8v-2z"/>
+            </svg>
+        </button>
+        <button id="btn-toggle-responses" type="button" title="Show responses" aria-label="Show responses">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M12 5c4.5 0 8.4 2.6 10 6.5-1.6 3.9-5.5 6.5-10 6.5S3.6 15.4 2 11.5C3.6 7.6 7.5 5 12 5zm0 2c-3.2 0-6 1.7-7.6 4.5C6 14.3 8.8 16 12 16s6-1.7 7.6-4.5C18 8.7 15.2 7 12 7zm0 2.5A2.5 2.5 0 1 1 9.5 12 2.5 2.5 0 0 1 12 9.5z"/>
+            </svg>
+        </button>
+    </div>
 
     <div id="point-count">Points: <span id="count">0</span></div>
 
@@ -198,6 +246,7 @@
         // --- CONFIGURATION ---
         // REPLACE THIS WITH YOUR GOOGLE APPS SCRIPT URL
         const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxb68dmmMr2VBem50I7uj58hEfFOV3TMohDDWTtwhNKEA83pEznL7X6vItO7gwb4QsfJw/exec";
+        const SHEET_URL = "https://docs.google.com/spreadsheets/d/1p9stWgA7yF2eZ4u2Rom169E4k-CxwIJ4je_T2NAgFoY/edit?gid=182911410#gid=182911410";
         
         // ZAGREB COORDINATES (Ban Jelacic Square)
         const MAP_CENTER = [45.8131, 15.9775];
@@ -215,6 +264,10 @@
         let points = [];
         let submitted = false;
         let submitting = false;
+        let responsesLayer = null;
+        let responsesVisible = false;
+        let responsesLoading = false;
+        let sheetUrl = SHEET_URL;
 
         // ============================================================
         // DOM ELEMENTS
@@ -224,6 +277,8 @@
             map: document.getElementById('map'),
             btnClear: document.getElementById('btn-clear'),
             btnSubmit: document.getElementById('btn-submit'),
+            btnOpenSheet: document.getElementById('btn-open-sheet'),
+            btnToggleResponses: document.getElementById('btn-toggle-responses'),
             status: document.getElementById('status'),
             overlay: document.getElementById('overlay'),
             pointCount: document.getElementById('point-count'),
@@ -257,6 +312,9 @@
 
             L.control.attribution({position: 'bottomright'}).addTo(map);
 
+            map.createPane('responsesPane');
+            map.getPane('responsesPane').style.zIndex = 200;
+
             // NEUTRAL BASEMAP (CartoDB Positron)
             // This is perfect for Zagreb as it shows street names clearly (Ilica, Vlaska, etc.)
             // but keeps the map grey so the user isn't biased by existing blue shapes.
@@ -277,6 +335,8 @@
 
             elements.btnClear.addEventListener('click', clearDrawing);
             elements.btnSubmit.addEventListener('click', submitDrawing);
+            elements.btnOpenSheet.addEventListener('click', openSheet);
+            elements.btnToggleResponses.addEventListener('click', toggleResponses);
         }
 
         function onMapClick(e) {
@@ -320,6 +380,96 @@
             }
             updatePointCount();
             hideStatus();
+        }
+
+        function openSheet() {
+            if (!sheetUrl) {
+                showStatus('Set SHEET_URL in index.html to open the sheet.');
+                return;
+            }
+            window.open(sheetUrl, '_blank', 'noopener');
+        }
+
+        function toggleResponses() {
+            if (!map || responsesLoading) return;
+            hideStatus();
+
+            if (responsesLayer) {
+                if (responsesVisible) {
+                    map.removeLayer(responsesLayer);
+                    responsesVisible = false;
+                } else {
+                    responsesLayer.addTo(map);
+                    responsesVisible = true;
+                }
+                updateResponsesButton();
+                return;
+            }
+
+            loadResponses();
+        }
+
+        function loadResponses() {
+            responsesLoading = true;
+            elements.btnToggleResponses.disabled = true;
+
+            const callbackName = `loadResponses_${Date.now()}_${Math.floor(Math.random() * 100000)}`;
+            const script = document.createElement('script');
+
+            const cleanup = () => {
+                responsesLoading = false;
+                elements.btnToggleResponses.disabled = false;
+                script.remove();
+                delete window[callbackName];
+            };
+
+            window[callbackName] = (data) => {
+                cleanup();
+
+                if (!data || !Array.isArray(data.features) || data.features.length === 0) {
+                    showStatus('No responses found yet.');
+                    updateResponsesButton();
+                    return;
+                }
+
+                if (data.metadata && data.metadata.sheet_url) {
+                    sheetUrl = data.metadata.sheet_url;
+                }
+
+                responsesLayer = L.geoJSON(data, {
+                    pane: 'responsesPane',
+                    style: {
+                        color: '#e67e22',
+                        weight: 3,
+                        opacity: 0.7
+                    }
+                });
+
+                responsesLayer.addTo(map);
+                responsesVisible = true;
+                updateResponsesButton();
+            };
+
+            script.onerror = () => {
+                cleanup();
+                showStatus('Unable to load responses. Check Apps Script deployment.');
+            };
+
+            const cacheBuster = Date.now();
+            script.src = `${GOOGLE_SCRIPT_URL}?action=geojson&callback=${callbackName}&_=${cacheBuster}`;
+            document.body.appendChild(script);
+        }
+
+        function updateResponsesButton() {
+            if (responsesVisible) {
+                elements.btnToggleResponses.classList.add('is-active');
+                elements.btnToggleResponses.title = 'Hide responses';
+                elements.btnToggleResponses.setAttribute('aria-label', 'Hide responses');
+            } else {
+                elements.btnToggleResponses.classList.remove('is-active');
+                elements.btnToggleResponses.title = 'Show responses';
+                elements.btnToggleResponses.setAttribute('aria-label', 'Show responses');
+            }
         }
 
         // ============================================================
@@ -442,6 +592,8 @@
             elements.map.style.cursor = 'default';
             elements.btnSubmit.disabled = true;
             elements.btnClear.disabled = true;
+            elements.btnOpenSheet.disabled = true;
+            elements.btnToggleResponses.disabled = true;
         }
 
         // ============================================================
