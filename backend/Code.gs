@@ -35,6 +35,9 @@ const CONFIG = {
   // Name of the Google Sheet to store data
   // Will be created automatically if it doesn't exist
   SHEET_NAME: 'Participatory Cartography Responses',
+  // Optional: set this if the script is not bound to a spreadsheet
+  // Example: '1abcDEFghiJKLmnopQRstuVWxyz1234567890'
+  SPREADSHEET_ID: '',
 
   // Headers for the data sheet
   HEADERS: [
@@ -128,7 +131,13 @@ function doGet(e) {
  * @returns {Sheet} - Google Sheets Sheet object
  */
 function getOrCreateSheet() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const ss = CONFIG.SPREADSHEET_ID
+    ? SpreadsheetApp.openById(CONFIG.SPREADSHEET_ID)
+    : SpreadsheetApp.getActiveSpreadsheet();
+
+  if (!ss) {
+    throw new Error('No active spreadsheet. Set CONFIG.SPREADSHEET_ID.');
+  }
 
   // Try to get existing sheet
   let sheet = ss.getSheetByName(CONFIG.SHEET_NAME);
