@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -186,10 +186,15 @@
         // REPLACE THIS WITH YOUR GOOGLE APPS SCRIPT URL
         const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxtzCgd8Wxj1A6I34Hwhny2m6h4PPPHCZyOQqNPQ7_zaJTXZkYouI0LDpDKAMaPEGaWMw/exec";
         
-        // ZAGREB COORDINATES (Ban Jelačić Square)
-        const MAP_CENTER = [45.8131, 15.9775]; 
-        const INITIAL_ZOOM = 14; 
+        // ZAGREB COORDINATES (Ban Jelacic Square)
+        const MAP_CENTER = [45.8131, 15.9775];
+        const INITIAL_ZOOM = 14;
         const SURVEY_VERSION = "v1.0_Zagreb";
+
+        const CONFIG = {
+            minPointsToSubmit: 2,
+            surveyVersion: SURVEY_VERSION
+        };
         
         // --- APP STATE ---
         let map;
@@ -235,7 +240,7 @@
             L.control.attribution({position: 'bottomright'}).addTo(map);
 
             // NEUTRAL BASEMAP (CartoDB Positron)
-            // This is perfect for Zagreb as it shows street names clearly (Ilica, Vlaška, etc.)
+            // This is perfect for Zagreb as it shows street names clearly (Ilica, Vlaska, etc.)
             // but keeps the map grey so the user isn't biased by existing blue shapes.
             L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
                 attribution: '&copy; OpenStreetMap &copy; CARTO',
@@ -245,18 +250,20 @@
 
             // Lock boundaries to Zagreb area only
             // This prevents users from panning away to Samobor or Velika Gorica
-            const bounds = map.getBounds().pad(0.5); 
+            const bounds = map.getBounds().pad(0.5);
             map.setMaxBounds(bounds);
         }
 
-        function setupEvents() {
-            map.on('click', (e) => {
-                if (isSubmitted) return;
-                addPoint(e.latlng);
-            });
+        function bindEvents() {
+            map.on('click', onMapClick);
 
-            document.getElementById('btn-clear').addEventListener('click', clearDrawing);
-            document.getElementById('btn-submit').addEventListener('click', submitData);
+            elements.btnClear.addEventListener('click', clearDrawing);
+            elements.btnSubmit.addEventListener('click', submitDrawing);
+        }
+
+        function onMapClick(e) {
+            if (submitted) return;
+            addPoint(e.latlng);
         }
 
         // --- DRAWING LOGIC ---
@@ -272,6 +279,8 @@
                     smoothFactor: 1
                 }).addTo(map);
             }
+            updatePointCount();
+            hideStatus();
         }
 
         function updatePointCount() {
@@ -327,10 +336,13 @@
                 method: "POST",
                 body: JSON.stringify(payload)
             })
-            .then(response => {
-                showThankYou();
+            .then((response) => {
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                onSubmitSuccess();
             })
-            .catch(error => {
+            .catch((error) => {
                 console.error('Submission error:', error);
                 onSubmitError();
             });
@@ -345,6 +357,9 @@
 
             // Show thank you overlay
             elements.overlay.style.display = 'flex';
+            elements.btnSubmit.innerHTML = 'Submitted';
+            elements.btnSubmit.disabled = true;
+            elements.btnClear.disabled = true;
 
             // Disable map interaction
             map.off('click', onMapClick);
@@ -396,6 +411,10 @@
                 if (localStorage.getItem('survey_submitted_' + CONFIG.surveyVersion) === 'true') {
                     submitted = true;
                     elements.overlay.style.display = 'flex';
+                    elements.btnSubmit.innerHTML = 'Submitted';
+                    elements.btnSubmit.disabled = true;
+                    elements.btnClear.disabled = true;
+                    map.off('click', onMapClick);
                     elements.map.style.cursor = 'default';
                 }
             } catch (e) {
@@ -412,8 +431,6 @@
         } else {
             init();
         }
-
-    })();
     </script>
 </body>
 </html>
