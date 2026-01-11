@@ -3,9 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Urban Survey</title>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-          integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+    <title>Zagreb Historical Watercourse Survey</title>
+    
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    
     <style>
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -181,47 +182,17 @@
             integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 
     <script>
-    (function() {
-        'use strict';
-
-        // ============================================================
-        // CONFIGURATION - Edit these values for your deployment
-        // ============================================================
-
-        const CONFIG = {
-            // Backend endpoint (Google Apps Script Web App URL)
-            endpoint: 'YOUR_GOOGLE_APPS_SCRIPT_URL_HERE',
-
-            // Survey metadata
-            surveyVersion: 'v1.0',
-
-            // Map settings for Zagreb (Medvescak area - historical Medvescak creek)
-            mapCenter: [45.8150, 15.9819],
-            initialZoom: 15,
-            minZoom: 14,
-            maxZoom: 17,
-
-            // Geographic bounds (Zagreb center) - prevents excessive panning
-            bounds: [
-                [45.7900, 15.9400],  // Southwest
-                [45.8400, 16.0200]   // Northeast
-            ],
-
-            // Drawing constraints
-            maxPoints: 100,         // Prevent excessive point density
-            minPointsToSubmit: 2,   // At least 2 points for a valid line
-
-            // Line style
-            lineColor: '#2980b9',
-            lineWeight: 4,
-            lineOpacity: 0.85
-        };
-
-        // ============================================================
-        // APPLICATION STATE
-        // ============================================================
-
-        let map = null;
+        // --- CONFIGURATION ---
+        // REPLACE THIS WITH YOUR GOOGLE APPS SCRIPT URL
+        const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxtzCgd8Wxj1A6I34Hwhny2m6h4PPPHCZyOQqNPQ7_zaJTXZkYouI0LDpDKAMaPEGaWMw/exec";
+        
+        // ZAGREB COORDINATES (Ban Jelačić Square)
+        const MAP_CENTER = [45.8131, 15.9775]; 
+        const INITIAL_ZOOM = 14; 
+        const SURVEY_VERSION = "v1.0_Zagreb";
+        
+        // --- APP STATE ---
+        let map;
         let polyline = null;
         let points = [];
         let submitted = false;
@@ -252,77 +223,53 @@
         }
 
         function initMap() {
-            // Create map with constrained options
             map = L.map('map', {
-                center: CONFIG.mapCenter,
-                zoom: CONFIG.initialZoom,
-                minZoom: CONFIG.minZoom,
-                maxZoom: CONFIG.maxZoom,
-                maxBounds: L.latLngBounds(CONFIG.bounds),
-                maxBoundsViscosity: 1.0,  // Hard boundary
-                zoomControl: true,
-                doubleClickZoom: false,   // Prevent accidental zoom
-                scrollWheelZoom: true,
-                touchZoom: true,
-                dragging: true,
-                attributionControl: true
+                center: MAP_CENTER,
+                zoom: INITIAL_ZOOM,
+                zoomControl: false,
+                attributionControl: false,
+                minZoom: 13, // Restrict so they can't zoom out to see all of Croatia
+                maxZoom: 17
             });
 
-            // Add zoom control to top-left
-            map.zoomControl.setPosition('topleft');
+            L.control.attribution({position: 'bottomright'}).addTo(map);
 
-            // Neutral grayscale basemap (CartoDB Positron)
-            // Methodologically important: neutral colors don't bias perception
+            // NEUTRAL BASEMAP (CartoDB Positron)
+            // This is perfect for Zagreb as it shows street names clearly (Ilica, Vlaška, etc.)
+            // but keeps the map grey so the user isn't biased by existing blue shapes.
             L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/">CARTO</a>',
+                attribution: '&copy; OpenStreetMap &copy; CARTO',
                 subdomains: 'abcd',
                 maxZoom: 20
             }).addTo(map);
+
+            // Lock boundaries to Zagreb area only
+            // This prevents users from panning away to Samobor or Velika Gorica
+            const bounds = map.getBounds().pad(0.5); 
+            map.setMaxBounds(bounds);
         }
 
-        function bindEvents() {
-            // Map click handler
-            map.on('click', onMapClick);
+        function setupEvents() {
+            map.on('click', (e) => {
+                if (isSubmitted) return;
+                addPoint(e.latlng);
+            });
 
-            // Button handlers
-            elements.btnClear.addEventListener('click', clearDrawing);
-            elements.btnSubmit.addEventListener('click', submitDrawing);
-
-            // Prevent double-tap zoom on mobile
-            elements.btnClear.addEventListener('touchend', function(e) { e.preventDefault(); });
-            elements.btnSubmit.addEventListener('touchend', function(e) { e.preventDefault(); });
+            document.getElementById('btn-clear').addEventListener('click', clearDrawing);
+            document.getElementById('btn-submit').addEventListener('click', submitData);
         }
 
-        // ============================================================
-        // DRAWING LOGIC
-        // ============================================================
-
-        function onMapClick(e) {
-            if (submitted || submitting) return;
-
-            // Enforce max points
-            if (points.length >= CONFIG.maxPoints) {
-                showStatus('Maximum points reached. Please submit or clear.');
-                return;
-            }
-
-            // Add point
-            points.push([e.latlng.lat, e.latlng.lng]);
-            updatePolyline();
-            updatePointCount();
-            hideStatus();
-        }
-
-        function updatePolyline() {
+        // --- DRAWING LOGIC ---
+        function addPoint(latlng) {
+            points.push(latlng);
             if (polyline) {
                 polyline.setLatLngs(points);
-            } else if (points.length > 0) {
+            } else {
                 polyline = L.polyline(points, {
-                    color: CONFIG.lineColor,
-                    weight: CONFIG.lineWeight,
-                    opacity: CONFIG.lineOpacity,
-                    lineCap: 'round',
-                    lineJoin: 'round'
+                    color: '#3388ff', // Standard blue for water
+                    weight: 4,
+                    opacity: 0.8,
+                    smoothFactor: 1
                 }).addTo(map);
             }
         }
@@ -366,17 +313,8 @@
             elements.btnSubmit.disabled = true;
             elements.btnClear.disabled = true;
 
-            // Build GeoJSON
-            const geojson = {
-                type: 'Feature',
-                geometry: {
-                    type: 'LineString',
-                    coordinates: points.map(p => [p[1], p[0]])  // GeoJSON uses [lng, lat]
-                },
-                properties: {}
-            };
+            const geojson = polyline.toGeoJSON();
 
-            // Build payload
             const payload = {
                 sessionId: generateSessionId(),
                 timestamp: new Date().toISOString(),
@@ -385,18 +323,12 @@
                 geometry: geojson
             };
 
-            // Send to backend
-            fetch(CONFIG.endpoint, {
-                method: 'POST',
-                mode: 'no-cors',  // Required for GAS
-                headers: {
-                    'Content-Type': 'text/plain'  // Bypass preflight
-                },
+            fetch(GOOGLE_SCRIPT_URL, {
+                method: "POST",
                 body: JSON.stringify(payload)
             })
-            .then(() => {
-                // With no-cors, we can't read response, assume success
-                onSubmitSuccess();
+            .then(response => {
+                showThankYou();
             })
             .catch(error => {
                 console.error('Submission error:', error);
