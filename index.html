@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Historical Watercourse Survey</title>
+    <title>Zagreb Historical Watercourse Survey</title>
     
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     
@@ -99,12 +99,13 @@
 
     <script>
         // --- CONFIGURATION ---
-        // REPLACE THIS URL WITH YOUR GOOGLE APPS SCRIPT WEB APP URL
+        // REPLACE THIS WITH YOUR GOOGLE APPS SCRIPT URL
         const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxtzCgd8Wxj1A6I34Hwhny2m6h4PPPHCZyOQqNPQ7_zaJTXZkYouI0LDpDKAMaPEGaWMw/exec";
         
-        const MAP_CENTER = [51.505, -0.09]; // CHANGE: City Center Lat/Lng
-        const INITIAL_ZOOM = 14;            // CHANGE: Start Zoom
-        const SURVEY_VERSION = "v1.0_London"; // Research identifier
+        // ZAGREB COORDINATES (Ban Jelačić Square)
+        const MAP_CENTER = [45.8131, 15.9775]; 
+        const INITIAL_ZOOM = 14; 
+        const SURVEY_VERSION = "v1.0_Zagreb";
         
         // --- APP STATE ---
         let map;
@@ -119,40 +120,38 @@
         });
 
         function initMap() {
-            // Initialize Leaflet
             map = L.map('map', {
                 center: MAP_CENTER,
                 zoom: INITIAL_ZOOM,
-                zoomControl: false, // Cleaner UI, can enable if strictly needed
+                zoomControl: false,
                 attributionControl: false,
-                minZoom: INITIAL_ZOOM - 1,
-                maxZoom: INITIAL_ZOOM + 2
+                minZoom: 13, // Restrict so they can't zoom out to see all of Croatia
+                maxZoom: 17
             });
 
-            // Add Attribution (Manual placement for minimalism if needed, or default)
             L.control.attribution({position: 'bottomright'}).addTo(map);
 
             // NEUTRAL BASEMAP (CartoDB Positron)
-            // Excellent for research overlays as it is grayscale and unobtrusive.
+            // This is perfect for Zagreb as it shows street names clearly (Ilica, Vlaška, etc.)
+            // but keeps the map grey so the user isn't biased by existing blue shapes.
             L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+                attribution: '&copy; OpenStreetMap &copy; CARTO',
                 subdomains: 'abcd',
                 maxZoom: 20
             }).addTo(map);
 
-            // Lock boundaries (Optional: prevents user from panning too far away)
-            const bounds = map.getBounds().pad(0.5); // Allow 50% buffer
+            // Lock boundaries to Zagreb area only
+            // This prevents users from panning away to Samobor or Velika Gorica
+            const bounds = map.getBounds().pad(0.5); 
             map.setMaxBounds(bounds);
         }
 
         function setupEvents() {
-            // Map Click: Add Point
             map.on('click', (e) => {
                 if (isSubmitted) return;
                 addPoint(e.latlng);
             });
 
-            // Buttons
             document.getElementById('btn-clear').addEventListener('click', clearDrawing);
             document.getElementById('btn-submit').addEventListener('click', submitData);
         }
@@ -160,14 +159,11 @@
         // --- DRAWING LOGIC ---
         function addPoint(latlng) {
             points.push(latlng);
-
             if (polyline) {
-                // Update existing line
                 polyline.setLatLngs(points);
             } else {
-                // Create new line
                 polyline = L.polyline(points, {
-                    color: '#3388ff',
+                    color: '#3388ff', // Standard blue for water
                     weight: 4,
                     opacity: 0.8,
                     smoothFactor: 1
@@ -197,25 +193,19 @@
             btnSubmit.innerHTML = '<span class="spinner"></span>Sending...';
             btnSubmit.disabled = true;
 
-            // Generate GeoJSON
             const geojson = polyline.toGeoJSON();
 
-            // Prepare Payload
             const payload = {
                 sessionId: generateSessionId(),
                 version: SURVEY_VERSION,
                 geo: geojson
             };
 
-            // Send to Google Sheets
-            // Using 'no-cors' mode is common for GAS, but here we use text/plain content type trick
-            // to allow Simple Request which avoids preflight, ensuring we get data through.
             fetch(GOOGLE_SCRIPT_URL, {
                 method: "POST",
                 body: JSON.stringify(payload)
             })
             .then(response => {
-                // With GAS Web Apps, response is often opaque, but if it doesn't fail, we assume success for UX
                 showThankYou();
             })
             .catch(error => {
