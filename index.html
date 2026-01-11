@@ -3,236 +3,485 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Historical Watercourse Survey</title>
-    
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    
+    <title>Urban Survey</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+          integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
     <style>
-        /* RESET & LAYOUT */
-        body, html { margin: 0; padding: 0; height: 100%; width: 100%; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; overflow: hidden; }
-        
-        /* MAP CONTAINER */
-        #map { height: 100%; width: 100%; z-index: 1; cursor: crosshair; }
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-        /* UI OVERLAY */
-        #ui-container {
+        html, body {
+            height: 100%;
+            width: 100%;
+            overflow: hidden;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: #fff;
+        }
+
+        #map {
             position: absolute;
-            bottom: 30px;
-            left: 50%;
-            transform: translateX(-50%);
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 80px;
+            z-index: 1;
+            cursor: crosshair;
+        }
+
+        #controls {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 80px;
+            background: #fff;
+            border-top: 1px solid #e0e0e0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 10px 15px;
             z-index: 1000;
-            background: rgba(255, 255, 255, 0.95);
-            padding: 15px 20px;
-            border-radius: 8px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+        }
+
+        #instruction {
+            font-size: 13px;
+            color: #555;
+            margin-bottom: 10px;
             text-align: center;
-            width: 90%;
-            max-width: 400px;
+        }
+
+        .btn-row {
+            display: flex;
+            gap: 12px;
+            width: 100%;
+            max-width: 320px;
+        }
+
+        button {
+            flex: 1;
+            padding: 12px 16px;
+            font-size: 14px;
+            font-weight: 500;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: opacity 0.15s, background-color 0.15s;
+        }
+
+        button:active { opacity: 0.8; }
+        button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+        #btn-clear {
+            background: #f5f5f5;
+            color: #333;
             border: 1px solid #ddd;
         }
 
-        /* TYPOGRAPHY */
-        h1 { font-size: 16px; margin: 0 0 10px 0; color: #333; font-weight: 600; }
-        p.instruction { font-size: 14px; color: #666; margin-bottom: 15px; line-height: 1.4; }
-
-        /* BUTTONS */
-        .btn-group { display: flex; gap: 10px; justify-content: center; }
-        
-        button {
-            flex: 1;
-            padding: 10px;
-            border: none;
-            border-radius: 4px;
-            font-size: 14px;
-            font-weight: 500;
-            cursor: pointer;
-            transition: opacity 0.2s;
+        #btn-submit {
+            background: #2c3e50;
+            color: #fff;
         }
 
-        button:disabled { opacity: 0.5; cursor: not-allowed; }
-        
-        #btn-clear { background-color: #f1f1f1; color: #333; border: 1px solid #ccc; }
-        #btn-submit { background-color: #2c3e50; color: white; }
-        
-        /* MODAL FOR SUCCESS */
-        #success-modal {
-            display: none;
+        #status {
             position: absolute;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background: white;
+            bottom: 85px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #e74c3c;
+            color: #fff;
+            padding: 8px 16px;
+            border-radius: 4px;
+            font-size: 13px;
+            z-index: 1001;
+            display: none;
+        }
+
+        #overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: #fff;
             z-index: 2000;
+            display: none;
             align-items: center;
             justify-content: center;
             flex-direction: column;
         }
-        
-        .spinner {
-            border: 3px solid #f3f3f3; border-top: 3px solid #3498db;
-            border-radius: 50%; width: 20px; height: 20px;
-            animation: spin 1s linear infinite;
-            display: inline-block; margin-right: 10px;
+
+        #overlay h2 {
+            font-size: 18px;
+            color: #333;
+            margin-bottom: 8px;
         }
-        
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        #overlay p {
+            font-size: 14px;
+            color: #666;
+        }
+
+        .leaflet-control-attribution {
+            font-size: 10px !important;
+        }
+
+        /* Loading spinner */
+        .spinner {
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-top-color: #fff;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            display: inline-block;
+            margin-right: 6px;
+            vertical-align: middle;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Point count indicator */
+        #point-count {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(255,255,255,0.9);
+            padding: 6px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            color: #555;
+            z-index: 1000;
+            display: none;
+        }
     </style>
 </head>
 <body>
-
     <div id="map"></div>
 
-    <div id="ui-container">
-        <h1>Historical Watercourse Trace</h1>
-        <p class="instruction">Tap on the map to trace the path where you believe the watercourse flowed.</p>
-        <div class="btn-group">
-            <button id="btn-clear">Clear Drawing</button>
-            <button id="btn-submit">Submit Trace</button>
+    <div id="point-count">Points: <span id="count">0</span></div>
+
+    <div id="status"></div>
+
+    <div id="controls">
+        <p id="instruction">Draw a line on the map where you believe the watercourse flowed.</p>
+        <div class="btn-row">
+            <button id="btn-clear" type="button">Clear</button>
+            <button id="btn-submit" type="button">Submit</button>
         </div>
-        <div id="status-msg" style="margin-top:10px; font-size:12px; color:#e74c3c;"></div>
     </div>
 
-    <div id="success-modal">
-        <h2>Thank you.</h2>
-        <p>Your submission has been recorded.</p>
+    <div id="overlay">
+        <h2>Thank you</h2>
+        <p>Your response has been recorded.</p>
     </div>
 
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+            integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 
     <script>
-        // --- CONFIGURATION ---
-        // REPLACE THIS URL WITH YOUR GOOGLE APPS SCRIPT WEB APP URL
-        const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxtzCgd8Wxj1A6I34Hwhny2m6h4PPPHCZyOQqNPQ7_zaJTXZkYouI0LDpDKAMaPEGaWMw/exec";
-        
-        const MAP_CENTER = [51.505, -0.09]; // CHANGE: City Center Lat/Lng
-        const INITIAL_ZOOM = 14;            // CHANGE: Start Zoom
-        const SURVEY_VERSION = "v1.0_London"; // Research identifier
-        
-        // --- APP STATE ---
-        let map;
+    (function() {
+        'use strict';
+
+        // ============================================================
+        // CONFIGURATION - Edit these values for your deployment
+        // ============================================================
+
+        const CONFIG = {
+            // Backend endpoint (Google Apps Script Web App URL)
+            endpoint: 'YOUR_GOOGLE_APPS_SCRIPT_URL_HERE',
+
+            // Survey metadata
+            surveyVersion: 'v1.0',
+
+            // Map settings for Zagreb (Medvescak area - historical Medvescak creek)
+            mapCenter: [45.8150, 15.9819],
+            initialZoom: 15,
+            minZoom: 14,
+            maxZoom: 17,
+
+            // Geographic bounds (Zagreb center) - prevents excessive panning
+            bounds: [
+                [45.7900, 15.9400],  // Southwest
+                [45.8400, 16.0200]   // Northeast
+            ],
+
+            // Drawing constraints
+            maxPoints: 100,         // Prevent excessive point density
+            minPointsToSubmit: 2,   // At least 2 points for a valid line
+
+            // Line style
+            lineColor: '#2980b9',
+            lineWeight: 4,
+            lineOpacity: 0.85
+        };
+
+        // ============================================================
+        // APPLICATION STATE
+        // ============================================================
+
+        let map = null;
         let polyline = null;
         let points = [];
-        let isSubmitted = false;
+        let submitted = false;
+        let submitting = false;
 
-        // --- INITIALIZATION ---
-        document.addEventListener('DOMContentLoaded', () => {
+        // ============================================================
+        // DOM ELEMENTS
+        // ============================================================
+
+        const elements = {
+            map: document.getElementById('map'),
+            btnClear: document.getElementById('btn-clear'),
+            btnSubmit: document.getElementById('btn-submit'),
+            status: document.getElementById('status'),
+            overlay: document.getElementById('overlay'),
+            pointCount: document.getElementById('point-count'),
+            count: document.getElementById('count')
+        };
+
+        // ============================================================
+        // INITIALIZATION
+        // ============================================================
+
+        function init() {
             initMap();
-            setupEvents();
-        });
+            bindEvents();
+            checkPreviousSubmission();
+        }
 
         function initMap() {
-            // Initialize Leaflet
+            // Create map with constrained options
             map = L.map('map', {
-                center: MAP_CENTER,
-                zoom: INITIAL_ZOOM,
-                zoomControl: false, // Cleaner UI, can enable if strictly needed
-                attributionControl: false,
-                minZoom: INITIAL_ZOOM - 1,
-                maxZoom: INITIAL_ZOOM + 2
+                center: CONFIG.mapCenter,
+                zoom: CONFIG.initialZoom,
+                minZoom: CONFIG.minZoom,
+                maxZoom: CONFIG.maxZoom,
+                maxBounds: L.latLngBounds(CONFIG.bounds),
+                maxBoundsViscosity: 1.0,  // Hard boundary
+                zoomControl: true,
+                doubleClickZoom: false,   // Prevent accidental zoom
+                scrollWheelZoom: true,
+                touchZoom: true,
+                dragging: true,
+                attributionControl: true
             });
 
-            // Add Attribution (Manual placement for minimalism if needed, or default)
-            L.control.attribution({position: 'bottomright'}).addTo(map);
+            // Add zoom control to top-left
+            map.zoomControl.setPosition('topleft');
 
-            // NEUTRAL BASEMAP (CartoDB Positron)
-            // Excellent for research overlays as it is grayscale and unobtrusive.
+            // Neutral grayscale basemap (CartoDB Positron)
+            // Methodologically important: neutral colors don't bias perception
             L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/">CARTO</a>',
                 subdomains: 'abcd',
                 maxZoom: 20
             }).addTo(map);
-
-            // Lock boundaries (Optional: prevents user from panning too far away)
-            const bounds = map.getBounds().pad(0.5); // Allow 50% buffer
-            map.setMaxBounds(bounds);
         }
 
-        function setupEvents() {
-            // Map Click: Add Point
-            map.on('click', (e) => {
-                if (isSubmitted) return;
-                addPoint(e.latlng);
-            });
+        function bindEvents() {
+            // Map click handler
+            map.on('click', onMapClick);
 
-            // Buttons
-            document.getElementById('btn-clear').addEventListener('click', clearDrawing);
-            document.getElementById('btn-submit').addEventListener('click', submitData);
+            // Button handlers
+            elements.btnClear.addEventListener('click', clearDrawing);
+            elements.btnSubmit.addEventListener('click', submitDrawing);
+
+            // Prevent double-tap zoom on mobile
+            elements.btnClear.addEventListener('touchend', function(e) { e.preventDefault(); });
+            elements.btnSubmit.addEventListener('touchend', function(e) { e.preventDefault(); });
         }
 
-        // --- DRAWING LOGIC ---
-        function addPoint(latlng) {
-            points.push(latlng);
+        // ============================================================
+        // DRAWING LOGIC
+        // ============================================================
 
+        function onMapClick(e) {
+            if (submitted || submitting) return;
+
+            // Enforce max points
+            if (points.length >= CONFIG.maxPoints) {
+                showStatus('Maximum points reached. Please submit or clear.');
+                return;
+            }
+
+            // Add point
+            points.push([e.latlng.lat, e.latlng.lng]);
+            updatePolyline();
+            updatePointCount();
+            hideStatus();
+        }
+
+        function updatePolyline() {
             if (polyline) {
-                // Update existing line
                 polyline.setLatLngs(points);
-            } else {
-                // Create new line
+            } else if (points.length > 0) {
                 polyline = L.polyline(points, {
-                    color: '#3388ff',
-                    weight: 4,
-                    opacity: 0.8,
-                    smoothFactor: 1
+                    color: CONFIG.lineColor,
+                    weight: CONFIG.lineWeight,
+                    opacity: CONFIG.lineOpacity,
+                    lineCap: 'round',
+                    lineJoin: 'round'
                 }).addTo(map);
             }
         }
 
+        function updatePointCount() {
+            if (points.length > 0) {
+                elements.pointCount.style.display = 'block';
+                elements.count.textContent = points.length;
+            } else {
+                elements.pointCount.style.display = 'none';
+            }
+        }
+
         function clearDrawing() {
-            if (isSubmitted) return;
+            if (submitted || submitting) return;
+
+            points = [];
             if (polyline) {
                 map.removeLayer(polyline);
                 polyline = null;
             }
-            points = [];
-            document.getElementById('status-msg').innerText = "";
+            updatePointCount();
+            hideStatus();
         }
 
-        // --- SUBMISSION LOGIC ---
-        function submitData() {
-            if (isSubmitted) return;
-            if (points.length < 2) {
-                document.getElementById('status-msg').innerText = "Please draw a line (at least 2 points) before submitting.";
+        // ============================================================
+        // SUBMISSION LOGIC
+        // ============================================================
+
+        function submitDrawing() {
+            if (submitted || submitting) return;
+
+            // Validate minimum points
+            if (points.length < CONFIG.minPointsToSubmit) {
+                showStatus('Please draw a line with at least 2 points.');
                 return;
             }
 
-            const btnSubmit = document.getElementById('btn-submit');
-            btnSubmit.innerHTML = '<span class="spinner"></span>Sending...';
-            btnSubmit.disabled = true;
+            submitting = true;
+            elements.btnSubmit.innerHTML = '<span class="spinner"></span>Sending';
+            elements.btnSubmit.disabled = true;
+            elements.btnClear.disabled = true;
 
-            // Generate GeoJSON
-            const geojson = polyline.toGeoJSON();
-
-            // Prepare Payload
-            const payload = {
-                sessionId: generateSessionId(),
-                version: SURVEY_VERSION,
-                geo: geojson
+            // Build GeoJSON
+            const geojson = {
+                type: 'Feature',
+                geometry: {
+                    type: 'LineString',
+                    coordinates: points.map(p => [p[1], p[0]])  // GeoJSON uses [lng, lat]
+                },
+                properties: {}
             };
 
-            // Send to Google Sheets
-            // Using 'no-cors' mode is common for GAS, but here we use text/plain content type trick
-            // to allow Simple Request which avoids preflight, ensuring we get data through.
-            fetch(GOOGLE_SCRIPT_URL, {
-                method: "POST",
+            // Build payload
+            const payload = {
+                sessionId: generateSessionId(),
+                timestamp: new Date().toISOString(),
+                surveyVersion: CONFIG.surveyVersion,
+                pointCount: points.length,
+                geometry: geojson
+            };
+
+            // Send to backend
+            fetch(CONFIG.endpoint, {
+                method: 'POST',
+                mode: 'no-cors',  // Required for GAS
+                headers: {
+                    'Content-Type': 'text/plain'  // Bypass preflight
+                },
                 body: JSON.stringify(payload)
             })
-            .then(response => {
-                // With GAS Web Apps, response is often opaque, but if it doesn't fail, we assume success for UX
-                showThankYou();
+            .then(() => {
+                // With no-cors, we can't read response, assume success
+                onSubmitSuccess();
             })
             .catch(error => {
-                console.error('Error:', error);
-                btnSubmit.innerText = "Error. Try again.";
-                btnSubmit.disabled = false;
+                console.error('Submission error:', error);
+                onSubmitError();
             });
         }
 
-        function showThankYou() {
-            isSubmitted = true;
-            document.getElementById('success-modal').style.display = 'flex';
+        function onSubmitSuccess() {
+            submitted = true;
+            submitting = false;
+
+            // Mark as submitted in localStorage
+            markAsSubmitted();
+
+            // Show thank you overlay
+            elements.overlay.style.display = 'flex';
+
+            // Disable map interaction
+            map.off('click', onMapClick);
+            elements.map.style.cursor = 'default';
         }
 
-        function generateSessionId() {
-            return 'sess_' + Math.random().toString(36).substr(2, 9);
+        function onSubmitError() {
+            submitting = false;
+            elements.btnSubmit.innerHTML = 'Submit';
+            elements.btnSubmit.disabled = false;
+            elements.btnClear.disabled = false;
+            showStatus('Error sending. Please try again.');
         }
+
+        // ============================================================
+        // UTILITY FUNCTIONS
+        // ============================================================
+
+        function generateSessionId() {
+            // Cryptographically random session ID
+            const array = new Uint8Array(12);
+            crypto.getRandomValues(array);
+            return Array.from(array, b => b.toString(16).padStart(2, '0')).join('');
+        }
+
+        function showStatus(message) {
+            elements.status.textContent = message;
+            elements.status.style.display = 'block';
+        }
+
+        function hideStatus() {
+            elements.status.style.display = 'none';
+        }
+
+        // ============================================================
+        // DUPLICATE SUBMISSION PREVENTION
+        // ============================================================
+
+        function markAsSubmitted() {
+            try {
+                localStorage.setItem('survey_submitted_' + CONFIG.surveyVersion, 'true');
+            } catch (e) {
+                // localStorage may be unavailable
+            }
+        }
+
+        function checkPreviousSubmission() {
+            try {
+                if (localStorage.getItem('survey_submitted_' + CONFIG.surveyVersion) === 'true') {
+                    submitted = true;
+                    elements.overlay.style.display = 'flex';
+                    elements.map.style.cursor = 'default';
+                }
+            } catch (e) {
+                // localStorage may be unavailable
+            }
+        }
+
+        // ============================================================
+        // START APPLICATION
+        // ============================================================
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', init);
+        } else {
+            init();
+        }
+
+    })();
     </script>
 </body>
 </html>
