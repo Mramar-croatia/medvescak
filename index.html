@@ -210,7 +210,7 @@
             position: relative;
             background: #fff;
             color: #2c3e50;
-            padding: 16px 18px;
+            padding: 28px 40px 20px;
             border-radius: 8px;
             width: min(320px, 85vw);
             box-shadow: 0 12px 30px rgba(0, 0, 0, 0.2);
@@ -252,10 +252,10 @@
 <body>
     <div id="map"></div>
 
-    <div id="welcome-modal" role="dialog" aria-modal="true" aria-labelledby="welcome-title">
+    <div id="welcome-modal" class="is-hidden" role="dialog" aria-modal="true" aria-labelledby="welcome-title">
         <div class="modal-content">
             <button id="btn-close-welcome" class="modal-close" type="button" aria-label="Zatvori">×</button>
-            <p id="welcome-title">Ucrtajte što preciznije gdje mislite da je tekao potok Medveščak.</p>
+            <p id="welcome-title">Ucrtaj sto preciznije gdje mislis da je tekao potok Medvescak.</p>
         </div>
     </div>
 
@@ -348,7 +348,10 @@
 
             initMap();
             bindEvents();
-            checkPreviousSubmission();
+            const alreadySubmitted = checkPreviousSubmission();
+            if (!alreadySubmitted) {
+                openWelcome();
+            }
         }
 
         function initMap() {
@@ -437,6 +440,10 @@
             }
             updatePointCount();
             hideStatus();
+        }
+
+        function openWelcome() {
+            elements.welcomeModal.classList.remove('is-hidden');
         }
 
         function closeWelcome() {
@@ -611,6 +618,7 @@
 
             // Show thank you overlay
             elements.overlay.style.display = 'flex';
+            closeWelcome();
             elements.btnSubmit.innerHTML = 'Poslano';
             elements.btnSubmit.disabled = true;
             elements.btnClear.disabled = true;
@@ -670,19 +678,23 @@
         }
 
         function checkPreviousSubmission() {
+            let alreadySubmitted = false;
             try {
                 if (localStorage.getItem('survey_submitted_' + CONFIG.surveyVersion) === 'true') {
                     submitted = true;
+                    alreadySubmitted = true;
                     elements.overlay.style.display = 'flex';
                     elements.btnSubmit.innerHTML = 'Poslano';
                     elements.btnSubmit.disabled = true;
                     elements.btnClear.disabled = true;
                     map.off('click', onMapClick);
                     elements.map.style.cursor = 'default';
+                    closeWelcome();
                 }
             } catch (e) {
                 // localStorage may be unavailable
             }
+            return alreadySubmitted;
         }
 
         // ============================================================
@@ -697,3 +709,4 @@
     </script>
 </body>
 </html>
+
