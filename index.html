@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Zagreb Historical Watercourse Survey</title>
+    <title>Istraživanje povijesnog vodotoka u Zagrebu</title>
     
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     
@@ -211,33 +211,33 @@
     <div id="map"></div>
 
     <div id="data-controls">
-        <button id="btn-open-sheet" type="button" title="Open response sheet" aria-label="Open response sheet">
+        <button id="btn-open-sheet" type="button" title="Otvori tablicu s odgovorima" aria-label="Otvori tablicu s odgovorima">
             <svg viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M7 3h7l5 5v13a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1zm7 1.5V9h4.5L14 4.5zM8 12h8v2H8v-2zm0 4h8v2H8v-2z"/>
             </svg>
         </button>
-        <button id="btn-toggle-responses" type="button" title="Show responses" aria-label="Show responses">
+        <button id="btn-toggle-responses" type="button" title="Prikaži odgovore" aria-label="Prikaži odgovore">
             <svg viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M12 5c4.5 0 8.4 2.6 10 6.5-1.6 3.9-5.5 6.5-10 6.5S3.6 15.4 2 11.5C3.6 7.6 7.5 5 12 5zm0 2c-3.2 0-6 1.7-7.6 4.5C6 14.3 8.8 16 12 16s6-1.7 7.6-4.5C18 8.7 15.2 7 12 7zm0 2.5A2.5 2.5 0 1 1 9.5 12 2.5 2.5 0 0 1 12 9.5z"/>
             </svg>
         </button>
     </div>
 
-    <div id="point-count">Points: <span id="count">0</span></div>
+    <div id="point-count">Točke: <span id="count">0</span></div>
 
     <div id="status"></div>
 
     <div id="controls">
-        <p id="instruction">Draw a line on the map where you believe the watercourse flowed.</p>
+        <p id="instruction">Nacrtajte liniju na karti gdje mislite da je tekao vodotok.</p>
         <div class="btn-row">
-            <button id="btn-clear" type="button">Clear</button>
-            <button id="btn-submit" type="button">Submit</button>
+            <button id="btn-clear" type="button">Očisti</button>
+            <button id="btn-submit" type="button">Pošalji</button>
         </div>
     </div>
 
     <div id="overlay">
-        <h2>Thank you</h2>
-        <p>Your response has been recorded.</p>
+        <h2>Hvala</h2>
+        <p>Vaš odgovor je zabilježen.</p>
     </div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -291,7 +291,7 @@
 
         function init() {
             if (!window.L || !window.L.map) {
-                showMapError('Map failed to load. Check your network or allow access to unpkg.com.');
+                showMapError('Karta se nije učitala. Provjerite mrežu ili dopustite pristup unpkg.com.');
                 return;
             }
 
@@ -384,7 +384,7 @@
 
         function openSheet() {
             if (!sheetUrl) {
-                showStatus('Set SHEET_URL in index.html to open the sheet.');
+                showStatus('Postavite SHEET_URL u index.html da biste otvorili tablicu.');
                 return;
             }
             window.open(sheetUrl, '_blank', 'noopener');
@@ -427,7 +427,7 @@
                 cleanup();
 
                 if (!data || !Array.isArray(data.features) || data.features.length === 0) {
-                    showStatus('No responses found yet.');
+                    showStatus('Još nema odgovora.');
                     updateResponsesButton();
                     return;
                 }
@@ -452,7 +452,7 @@
 
             script.onerror = () => {
                 cleanup();
-                showStatus('Unable to load responses. Check Apps Script deployment.');
+                showStatus('Ne mogu učitati odgovore. Provjerite objavu Apps Scripta.');
             };
 
             const cacheBuster = Date.now();
@@ -463,12 +463,12 @@
         function updateResponsesButton() {
             if (responsesVisible) {
                 elements.btnToggleResponses.classList.add('is-active');
-                elements.btnToggleResponses.title = 'Hide responses';
-                elements.btnToggleResponses.setAttribute('aria-label', 'Hide responses');
+                elements.btnToggleResponses.title = 'Sakrij odgovore';
+                elements.btnToggleResponses.setAttribute('aria-label', 'Sakrij odgovore');
             } else {
                 elements.btnToggleResponses.classList.remove('is-active');
-                elements.btnToggleResponses.title = 'Show responses';
-                elements.btnToggleResponses.setAttribute('aria-label', 'Show responses');
+                elements.btnToggleResponses.title = 'Prikaži odgovore';
+                elements.btnToggleResponses.setAttribute('aria-label', 'Prikaži odgovore');
             }
         }
 
@@ -505,12 +505,12 @@
 
             // Validate minimum points
             if (points.length < CONFIG.minPointsToSubmit) {
-                showStatus('Please draw a line with at least 2 points.');
+                showStatus('Nacrtajte liniju s najmanje 2 točke.');
                 return;
             }
 
             submitting = true;
-            elements.btnSubmit.innerHTML = '<span class="spinner"></span>Sending';
+            elements.btnSubmit.innerHTML = '<span class="spinner"></span>Šaljem';
             elements.btnSubmit.disabled = true;
             elements.btnClear.disabled = true;
 
@@ -550,7 +550,7 @@
 
             // Show thank you overlay
             elements.overlay.style.display = 'flex';
-            elements.btnSubmit.innerHTML = 'Submitted';
+            elements.btnSubmit.innerHTML = 'Poslano';
             elements.btnSubmit.disabled = true;
             elements.btnClear.disabled = true;
 
@@ -561,10 +561,10 @@
 
         function onSubmitError() {
             submitting = false;
-            elements.btnSubmit.innerHTML = 'Submit';
+            elements.btnSubmit.innerHTML = 'Pošalji';
             elements.btnSubmit.disabled = false;
             elements.btnClear.disabled = false;
-            showStatus('Error sending. Please try again.');
+            showStatus('Greška pri slanju. Pokušajte ponovno.');
         }
 
         // ============================================================
@@ -613,7 +613,7 @@
                 if (localStorage.getItem('survey_submitted_' + CONFIG.surveyVersion) === 'true') {
                     submitted = true;
                     elements.overlay.style.display = 'flex';
-                    elements.btnSubmit.innerHTML = 'Submitted';
+                    elements.btnSubmit.innerHTML = 'Poslano';
                     elements.btnSubmit.disabled = true;
                     elements.btnClear.disabled = true;
                     map.off('click', onMapClick);
