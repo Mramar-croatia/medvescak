@@ -192,6 +192,48 @@
             fill: #fff;
         }
 
+        #welcome-modal {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.35);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 3000;
+        }
+
+        #welcome-modal.is-hidden {
+            display: none;
+        }
+
+        #welcome-modal .modal-content {
+            position: relative;
+            background: #fff;
+            color: #2c3e50;
+            padding: 16px 18px;
+            border-radius: 8px;
+            width: min(320px, 85vw);
+            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.2);
+            font-size: 14px;
+            line-height: 1.4;
+            text-align: center;
+        }
+
+        #welcome-modal .modal-close {
+            position: absolute;
+            top: 6px;
+            right: 6px;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            border: none;
+            background: #f5f5f5;
+            color: #555;
+            font-size: 18px;
+            line-height: 28px;
+            cursor: pointer;
+        }
+
         /* Point count indicator */
         #point-count {
             position: absolute;
@@ -209,6 +251,13 @@
 </head>
 <body>
     <div id="map"></div>
+
+    <div id="welcome-modal" role="dialog" aria-modal="true" aria-labelledby="welcome-title">
+        <div class="modal-content">
+            <button id="btn-close-welcome" class="modal-close" type="button" aria-label="Zatvori">×</button>
+            <p id="welcome-title">Ucrtajte što preciznije gdje mislite da je tekao potok Medveščak.</p>
+        </div>
+    </div>
 
     <div id="data-controls">
         <button id="btn-open-sheet" type="button" title="Otvori tablicu s odgovorima" aria-label="Otvori tablicu s odgovorima">
@@ -275,6 +324,8 @@
 
         const elements = {
             map: document.getElementById('map'),
+            welcomeModal: document.getElementById('welcome-modal'),
+            btnCloseWelcome: document.getElementById('btn-close-welcome'),
             btnClear: document.getElementById('btn-clear'),
             btnSubmit: document.getElementById('btn-submit'),
             btnOpenSheet: document.getElementById('btn-open-sheet'),
@@ -337,6 +388,12 @@
             elements.btnSubmit.addEventListener('click', submitDrawing);
             elements.btnOpenSheet.addEventListener('click', openSheet);
             elements.btnToggleResponses.addEventListener('click', toggleResponses);
+            elements.btnCloseWelcome.addEventListener('click', closeWelcome);
+            elements.welcomeModal.addEventListener('click', (event) => {
+                if (event.target === elements.welcomeModal) {
+                    closeWelcome();
+                }
+            });
         }
 
         function onMapClick(e) {
@@ -380,6 +437,10 @@
             }
             updatePointCount();
             hideStatus();
+        }
+
+        function closeWelcome() {
+            elements.welcomeModal.classList.add('is-hidden');
         }
 
         function openSheet() {
